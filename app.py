@@ -232,12 +232,15 @@ def pretty(name: str) -> str:
 
 def top_factors(input_df, n=6):
     """Top features pushing THIS applicant's risk up or down (TreeSHAP values)."""
+    booster = explainer
+    if booster is None:
+        return []
     pre = model.named_steps["preprocessor"]
     xt = pre.transform(input_df)
     if hasattr(xt, "toarray"):
         xt = xt.toarray()
     xt = np.asarray(xt, dtype=float)
-    contribs = explainer.predict(xgboost.DMatrix(xt), pred_contribs=True)[0][:-1]
+    contribs = booster.predict(xgboost.DMatrix(xt), pred_contribs=True)[0][:-1]
     names = pre.get_feature_names_out()
     order = np.argsort(np.abs(contribs))[::-1][:n]
     return [(pretty(names[i]), float(contribs[i])) for i in order]
