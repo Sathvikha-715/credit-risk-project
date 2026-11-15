@@ -1,0 +1,77 @@
+# CreditIQ – Credit Risk Prediction
+
+CreditIQ predicts the probability that a loan applicant will default, shows which factors drove each score, and turns the score into an approve, review, or decline decision using a threshold chosen by cost.
+
+## Live Demo
+https://credit-risk-project-c8hxbjmzrcrgb4ndzlgpwu.streamlit.app/
+
+## Screenshots
+![CreditIQ layout](screenshots/layout.png)
+![Approved applicant](screenshots/approved.png)
+![Declined applicant](screenshots/declined.png)
+![Default rate by loan grade](screenshots/eda.png)
+
+## What it does
+- Scores a single applicant in real time (Random Forest + XGBoost soft-voting ensemble)
+- Shows the top factors that raised or lowered the score (TreeSHAP values from the XGBoost model)
+- Uses a 20% decision threshold chosen by minimising cost, where a missed default is assumed to cost 5 times a wrongly rejected loan
+- Includes an exploratory analysis notebook with data-quality checks
+
+## Data
+Public credit risk dataset: 32,581 loans, 21.8% defaults. Cleaning removed impossible values (age up to 144, employment length up to 123 years). Missing employment length and interest rate are filled with the median.
+
+## Method
+1. Stratified train / validation / test split with a fixed random seed
+2. Pipeline: median imputation, scaling, one-hot encoding, then the ensemble
+3. Threshold chosen on the validation set; final results reported on the untouched test set
+
+## Results (test set)
+| Metric | Threshold 0.5 | Cost-tuned threshold (0.2) |
+|---|---|---|
+| ROC-AUC | 0.931 | 0.931 |
+| PR-AUC | 0.882 | 0.882 |
+| Precision | 0.977 | 0.712 |
+| Recall | 0.703 | 0.795 |
+| F1 | 0.818 | 0.751 |
+
+| Threshold | Missed defaulters | False alarms | Total cost |
+|---|---|---|---|
+| 0.5 | 422 | 23 | 2,133 |
+| 0.2 | 291 | 457 | 1,912 |
+
+Choosing 0.2 instead of 0.5 lowers total misclassification cost by 10.4% on the test set (missed default = 5x a false alarm, an assumed cost ratio). It catches 131 more defaulters at the price of 434 more false alarms.
+
+## Exploratory analysis
+`notebooks/01_EDA.ipynb` covers data quality, target balance, distributions, default rate by category, and correlations.
+
+## Limitations
+- The 5:1 cost ratio is an assumption, not real lender data. A different ratio gives a different threshold.
+- The explanation chart covers the XGBoost half of the ensemble, not the Random Forest half.
+- Age is used as a feature. A production lender would likely exclude it.
+- Loan grade and interest rate are set by the lender using its own risk assessment, so they are strong predictors partly because they already encode that judgement.
+- Trained on one public dataset. This is a portfolio project, not for real lending decisions.
+
+## Run locally
+```bash
+git clone https://github.com/Sathvikha-715/credit-risk-project
+pip install -r requirements.txt
+python src/model.py        # trains and saves the model
+python src/cost_check.py   # cost comparison of the two thresholds
+streamlit run app.py
+```
+
+## Project structure
+```text
+├── app.py                  # Streamlit app
+├── src/
+│   ├── model.py            # training, threshold selection, saved metrics
+│   └── cost_check.py       # cost comparison at two thresholds
+├── notebooks/01_EDA.ipynb  # exploratory analysis
+├── models/                 # saved model and config
+├── dataset/                # credit_risk_dataset.csv
+├── screenshots/
+└── requirements.txt
+```
+
+## Author
+Sathvikha Reddy · B.E. Artificial Intelligence and Data Science
